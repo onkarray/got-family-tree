@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Iron Lineage — Game of Thrones Family Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060408;--surface:#0d0a10;--border:#281e30;
+  --text:#e8ddd4;--muted:#7a7080;--gold:#c9a84c;--gold-dim:#7a5e20;
+}
+html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow-x:hidden;min-height:100vh}
+
+/* BACKGROUND */
+#bg-canvas{position:fixed;inset:0;pointer-events:none;z-index:0}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 10%,rgba(192,57,43,0.07) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 5%,rgba(123,158,166,0.06) 0%,transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% 100%,rgba(10,8,12,0.8) 0%,transparent 100%);
+}
+
+/* HEADER */
+#header{position:relative;z-index:10;text-align:center;padding:52px 24px 32px}
+.eyebrow{
+  font-family:'Cinzel',serif;font-size:10.5px;letter-spacing:0.35em;
+  text-transform:uppercase;color:var(--gold-dim);margin-bottom:14px;opacity:0.8;
+}
+.main-title{
+  font-family:'Cinzel Decorative',serif;font-size:clamp(1.8rem,5.5vw,4.2rem);
+  font-weight:700;letter-spacing:0.06em;line-height:1.05;margin-bottom:6px;
+  background:linear-gradient(175deg,#f0e8d8 0%,#c9a84c 45%,#8b5e1e 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 30px rgba(201,168,76,0.25));
+}
+.subtitle{
+  font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.12em;
+  color:var(--muted);margin-bottom:28px;
+}
+.spoiler-note{
+  display:inline-block;font-size:10px;color:#6a4040;border:1px solid #4a2828;
+  border-radius:3px;padding:3px 10px;letter-spacing:0.08em;font-family:'Cinzel',serif;
+  margin-bottom:28px;
+}
+
+/* FILTERS */
+#filters{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.filter-btn{
+  font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;
+  text-transform:uppercase;padding:5px 13px;border-radius:20px;border:1px solid;
+  background:transparent;cursor:pointer;transition:all 0.2s;color:inherit;
+}
+.filter-btn.active,.filter-btn:hover{color:#fff!important}
+
+/* LEGEND */
+#legend{
+  display:flex;justify-content:center;gap:18px;flex-wrap:wrap;
+  font-size:10px;color:var(--muted);font-family:'Cinzel',serif;
+  letter-spacing:0.06em;margin-bottom:4px;
+}
+.leg{display:flex;align-items:center;gap:6px}
+.leg-line{width:28px;height:0;border-top:2px solid}
+.leg-dash{width:28px;height:0;border-top:2px dashed}
+
+/* SCROLL HINT */
+#scroll-hint{
+  position:relative;z-index:10;text-align:center;
+  font-size:10px;color:var(--muted);font-family:'Cinzel',serif;
+  letter-spacing:0.12em;padding:6px 0 12px;opacity:0.55;
+}
+
+/* TREE */
+#tree-wrap{
+  position:relative;z-index:5;overflow-x:auto;overflow-y:visible;
+  padding:10px 50px 80px;-webkit-overflow-scrolling:touch;
+}
+#tree-wrap::-webkit-scrollbar{height:4px}
+#tree-wrap::-webkit-scrollbar-track{background:var(--surface)}
+#tree-wrap::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px}
+#tree{position:relative;width:3020px;height:700px}
+
+/* SVG layer */
+#svg-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+/* HOUSE ZONE RECTS (inside SVG) */
+
+/* CHARACTER NODES */
+.cnode{
+  position:absolute;width:80px;
+  transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;
+  cursor:pointer;transition:transform 0.18s ease;z-index:20;
+}
+.cnode:hover{transform:translate(-50%,-50%) scale(1.2)}
+.cring{
+  width:58px;height:58px;border-radius:50%;border:2.5px solid;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;transition:box-shadow 0.2s;
+  background:rgba(12,8,16,0.92);
+}
+.cring::after{
+  content:'';position:absolute;inset:-5px;border-radius:50%;
+  background:radial-gradient(ellipse,var(--hc,#fff) 0%,transparent 70%);
+  opacity:0.07;pointer-events:none;
+}
+.cinitial{font-family:'Cinzel',serif;font-size:17px;font-weight:700}
+.cmark{position:absolute;top:-5px;right:-5px;font-size:11px;line-height:1}
+.cname{
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.05em;
+  text-align:center;margin-top:5px;color:var(--text);line-height:1.3;max-width:82px;
+}
+.ctitle{
+  font-size:8px;color:var(--muted);text-align:center;
+  font-family:'Inter',sans-serif;margin-top:1px;max-width:82px;line-height:1.2;
+}
+
+/* HOUSE ZONE LABELS */
+.hlabel{
+  position:absolute;font-family:'Cinzel',serif;font-size:9.5px;
+  letter-spacing:0.22em;text-transform:uppercase;pointer-events:none;opacity:0.22;
+  font-weight:600;
+}
+
+/* GEN LABELS */
+.glabel{
+  position:absolute;font-family:'Cinzel',serif;font-size:8px;
+  letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);
+  opacity:0.35;left:-30px;
+}
+
+/* TOOLTIP */
+#tt{
+  position:fixed;z-index:1000;background:rgba(8,5,12,0.97);
+  border:1px solid;border-radius:8px;padding:15px 17px;max-width:270px;
+  pointer-events:none;opacity:0;transition:opacity 0.12s;
+  box-shadow:0 8px 40px rgba(0,0,0,0.8);
+}
+#tt.on{opacity:1}
+.tt-house{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:4px}
+.tt-name{font-family:'Cinzel',serif;font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px;line-height:1.2}
+.tt-job{font-size:10.5px;color:var(--muted);margin-bottom:7px;font-style:italic;line-height:1.3}
+.tt-stat{font-size:10.5px;margin-bottom:7px}
+.tt-desc{font-size:11.5px;color:#b0a8b8;line-height:1.55}
+
+/* ---- ANIMATIONS ---- */
+@keyframes emFloat{
+  0%{transform:translateY(0) translateX(0);opacity:0}
+  8%{opacity:1}
+  92%{opacity:0.8}
+  100%{transform:translateY(-110vh) translateX(var(--dx,0px));opacity:0}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="header">
+  <div class="eyebrow">Seven Kingdoms · All Houses · Complete Bloodlines</div>
+  <h1 class="main-title">THE IRON LINEAGE</h1>
+  <p class="subtitle">Game of Thrones — Complete Family Tree</p>
+  <div class="spoiler-note">⚠ Contains full series spoilers including finale</div>
+
+  <div id="filters">
+    <button class="filter-btn" data-h="all"       style="border-color:#c9a84c;color:#c9a84c"  onclick="filter('all')">All Houses</button>
+    <button class="filter-btn" data-h="targaryen" style="border-color:#C0392B;color:#C0392B"  onclick="filter('targaryen')">Targaryen</button>
+    <button class="filter-btn" data-h="stark"     style="border-color:#7B9EA6;color:#7B9EA6"  onclick="filter('stark')">Stark</button>
+    <button class="filter-btn" data-h="lannister" style="border-color:#D4A017;color:#D4A017"  onclick="filter('lannister')">Lannister</button>
+    <button class="filter-btn" data-h="baratheon" style="border-color:#E8821F;color:#E8821F"  onclick="filter('baratheon')">Baratheon</button>
+    <button class="filter-btn" data-h="tully"     style="border-color:#2980B9;color:#2980B9"  onclick="filter('tully')">Tully</button>
+    <button class="filter-btn" data-h="greyjoy"   style="border-color:#95A5A6;color:#95A5A6"  onclick="filter('greyjoy')">Greyjoy</button>
+  </div>
+
+  <div id="legend">
+    <div class="leg"><div class="leg-line" style="border-color:#C9A84C"></div><span>Marriage</span></div>
+    <div class="leg"><div class="leg-dash" style="border-color:#9B59B6"></div><span>Secret Marriage</span></div>
+    <div class="leg"><div class="leg-line" style="border-color:rgba(255,255,255,0.4)"></div><span>Bloodline</span></div>
+    <div class="leg"><div class="leg-dash" style="border-color:#888"></div><span>Bastard</span></div>
+    <div class="leg"><span style="color:#C0392B">⚔</span><span> Deceased</span></div>
+    <div class="leg"><span style="color:#2ECC71">✦</span><span> Alive</span></div>
+  </div>
+</div>
+
+<div id="scroll-hint">← Scroll to explore all houses →</div>
+
+<div id="tree-wrap">
+  <div id="tree">
+    <svg id="svg-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="nl"></div>
+  </div>
+</div>
+
+<div id="tt">
+  <div class="tt-house" id="tt-h"></div>
+  <div class="tt-name" id="tt-n"></div>
+  <div class="tt-job"  id="tt-j"></div>
+  <div class="tt-stat" id="tt-s"></div>
+  <div class="tt-desc" id="tt-d"></div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+
+const H = {
+  targaryen:{ c:'#C0392B', g:'#FF5544', label:'House Targaryen', words:'Fire and Blood' },
+  stark:    { c:'#7B9EA6', g:'#A8DCE8', label:'House Stark',     words:'Winter is Coming' },
+  lannister:{ c:'#D4A017', g:'#FFD700', label:'House Lannister', words:'Hear Me Roar' },
+  baratheon:{ c:'#E8821F', g:'#FFA050', label:'House Baratheon', words:'Ours is the Fury' },
+  tully:    { c:'#2980B9', g:'#5DADE2', label:'House Tully',     words:'Family, Duty, Honor' },
+  greyjoy:  { c:'#95A5A6', g:'#BDC3C7', label:'House Greyjoy',   words:'We Do Not Sow' },
+};
+
+const CHARS = [
+  // TARGARYENS
+  {id:'aerys',   name:'Aerys II',      title:'The Mad King',            house:'targaryen', dead:true,  x:200, y:140,
+   info:'Last Targaryen king on the Iron Throne. Paranoid and cruel — burned thousands alive with wildfire. Killed by Jaime Lannister, who earned the name "Kingslayer" for the act.'},
+  {id:'rhaella', name:'Rhaella',        title:'Queen of Seven Kingdoms', house:'targaryen', dead:true,  x:345, y:140,
+   info:'Wife of Aerys II and his sister-wife. Died in a storm on Dragonstone giving birth to Daenerys.'},
+  {id:'rhaegar', name:'Rhaegar',        title:'Crown Prince',            house:'targaryen', dead:true,  x:155, y:340,
+   info:'Eldest son of Aerys. Brilliant, haunted, and prophetically obsessed. Secretly wed Lyanna Stark — their child would be Jon Snow. Killed by Robert Baratheon at the Trident with a warhammer.'},
+  {id:'viserys', name:'Viserys III',    title:'The Beggar King',         house:'targaryen', dead:true,  x:310, y:340,
+   info:'Sold his sister Daenerys to Khal Drogo in exchange for an army. Arrogant and cruel. Killed with a "golden crown" — molten gold poured on his head by Drogo.'},
+  {id:'dany',    name:'Daenerys',       title:'The Dragon Queen',        house:'targaryen', dead:true,  x:460, y:340,
+   info:'The Unburnt. Mother of Dragons. Khaleesi of the Great Grass Sea. Liberated Astapor, Yunkai, and Meereen. Burned King\'s Landing. Killed by Jon Snow in the Iron Throne room.'},
+
+  // STARKS — parents
+  {id:'rickard', name:'Rickard Stark',  title:'Lord of Winterfell',      house:'stark', dead:true,  x:740, y:140,
+   info:'Lord Paramount of the North. Fostered alliances with southern houses. Burned alive in his own armor by the Mad King Aerys.'},
+  {id:'lyarra',  name:'Lyarra Stark',   title:'Lady of Winterfell',      house:'stark', dead:true,  x:885, y:140,
+   info:'Wife of Rickard Stark. Mother of Ned, Lyanna, and Benjen. Died while her children were still young.'},
+  {id:'ned',     name:'Eddard Stark',   title:'Lord of Winterfell · Hand of the King', house:'stark', dead:true,  x:760, y:340,
+   info:'The most honorable man in Westeros — and killed for it. Lord of Winterfell, Robert\'s Hand. Kept the secret of Jon\'s birth to protect him. Beheaded on Joffrey\'s orders on false charges of treason.'},
+  {id:'catelyn', name:'Catelyn Tully',  title:'Lady of Winterfell',      house:'tully', dead:true,  x:915, y:340,
+   info:'Daughter of Hoster Tully. Married Ned Stark. Fierce and devoted mother of five. Briefly resurrected as Lady Stoneheart in the books. Murdered at the Red Wedding — throat slashed by Frey men.'},
+  {id:'lyanna',  name:'Lyanna Stark',   title:'The Wolf Maid',           house:'stark', dead:true,  x:1065, y:340,
+   info:'Sister of Ned. "The She-Wolf" — fierce and wild. Secretly loved and married Rhaegar Targaryen. Died in the Tower of Joy in Dorne, shortly after giving birth to Jon Snow. Made Ned swear to protect the child.'},
+  {id:'benjen',  name:'Benjen Stark',   title:'First Ranger · Night\'s Watch', house:'stark', dead:true,  x:1200, y:340,
+   info:'Ned\'s younger brother. Joined the Night\'s Watch. Went missing beyond the Wall. Transformed into a half-wight by the Children of the Forest. Sacrificed himself to save Bran and Meera Reed.'},
+
+  // STARK CHILDREN
+  {id:'robb',    name:'Robb Stark',     title:'King in the North',        house:'stark', dead:true,  x:720, y:540,
+   info:'The Young Wolf — eldest son of Ned and Catelyn. Won every battle as King in the North. Married Talisa against political advice. Murdered alongside his mother, wife, and unborn child at the Red Wedding by Walder Frey and Roose Bolton.'},
+  {id:'sansa',   name:'Sansa Stark',    title:'Queen in the North',       house:'stark', dead:false, x:845, y:540,
+   info:'Eldest daughter of Ned. Survived captivity under Joffrey Baratheon, manipulation by Petyr Baelish, and the sadistic torture of Ramsay Bolton. Emerged the most politically astute Stark. Crowned Queen in the North.'},
+  {id:'arya',    name:'Arya Stark',     title:'No One · The Wolf Maid',   house:'stark', dead:false, x:965, y:540,
+   info:'The fierce warrior daughter of Ned. Trained as a Faceless Man in the House of Black and White, Braavos. Killed the Night King at the Battle of Winterfell with a dragonglass dagger. Sailed west of Westeros — beyond the known maps.'},
+  {id:'bran',    name:'Bran Stark',     title:'King of the Six Kingdoms', house:'stark', dead:false, x:1080, y:540,
+   info:'The Three-Eyed Raven. Pushed from a window by Jaime at age seven. Can warg into animals and see through time. Elected King of the Six Kingdoms at the Great Council of Dragonpit — Sansa negotiated the North\'s independence.'},
+  {id:'rickon',  name:'Rickon Stark',   title:'Lord of Winterfell',       house:'stark', dead:true,  x:1195, y:540,
+   info:'Youngest Stark child. Hidden in Skagos after leaving Winterfell. Captured by the Umbers and handed to Ramsay Bolton. Killed by Ramsay\'s arrow in front of Jon during the Battle of the Bastards — a deliberate psychological weapon.'},
+
+  // JON SNOW
+  {id:'jon',     name:'Jon Snow',       title:'Aegon Targaryen · King in the North', house:'stark', dead:false, x:440, y:540,
+   info:'True name: Aegon Targaryen, son of Rhaegar and Lyanna. Raised as Ned\'s bastard to protect him. Lord Commander of the Night\'s Watch. King in the North. Rode the dragon Rhaegal. Killed Daenerys to prevent tyranny. Exiled beyond the Wall — where he belongs.'},
+
+  // TULLY
+  {id:'hoster',  name:'Hoster Tully',   title:'Lord of Riverrun',         house:'tully', dead:true,  x:1380, y:140,
+   info:'Lord Paramount of the Trident and Riverlands. Father of Catelyn, Lysa, and Edmure. Forced Lysa to abort Petyr Baelish\'s child — an act Lysa never forgave. Died of illness before the Red Wedding.'},
+  {id:'lysa',    name:'Lysa Tully',     title:'Lady of the Eyrie',        house:'tully', dead:true,  x:1360, y:340,
+   info:'Catelyn\'s younger sister. Still nursing her 8-year-old son Robin from the breast. Paranoid and unstable. Secretly poisoned her husband Jon Arryn on Petyr Baelish\'s orders. Thrown through the Moon Door by Littlefinger, who told her he only ever loved "her sister."'},
+  {id:'edmure',  name:'Edmure Tully',   title:'Lord of Riverrun',         house:'tully', dead:false, x:1490, y:340,
+   info:'Brother of Catelyn. Impulsive but well-meaning. The groom at the infamous Red Wedding — married Roslin Frey. Kept prisoner by the Freys and Lannisters for years. Survived to become Lord of Riverrun.'},
+
+  // BARATHEON
+  {id:'robert',  name:'Robert Baratheon', title:'King of the Seven Kingdoms', house:'baratheon', dead:true,  x:1700, y:340,
+   info:'The rebel king who toppled the Targaryens. Killed Prince Rhaegar at the Trident with his warhammer. A legendary warrior who became an obese, resentful king. Always loved Lyanna, never Cersei. Died in a staged hunting "accident" — Cersei arranged for his wine to be watered down so he\'d drink more.'},
+  {id:'stannis', name:'Stannis Baratheon', title:'The One True King',      house:'baratheon', dead:true,  x:1870, y:340,
+   info:'The rightful heir by law — and everyone\'s least favorite character to admit was legally correct. Defended the Wall against Mance Rayder. Seduced by Melisandre\'s shadow magic. Burned his daughter Shireen alive as a sacrifice to R\'hllor. Killed by Brienne of Tarth.'},
+  {id:'renly',   name:'Renly Baratheon', title:'Lord of Storm\'s End',    house:'baratheon', dead:true,  x:2000, y:340,
+   info:'Youngest and most charismatic Baratheon. Built a massive army with House Tyrell\'s support. Secretly in love with Ser Loras Tyrell. Assassinated by a shadow creature conjured by Melisandre from Stannis\'s life force.'},
+  {id:'gendry',  name:'Gendry',          title:'Lord of Storm\'s End',    house:'baratheon', dead:false, x:1730, y:540,
+   info:'Robert\'s bastard son by a tavern wench. Blacksmith apprentice. Survived the Brotherhood Without Banners, Dragonstone imprisonment by Stannis, and the Long Night. Named Lord of Storm\'s End by Daenerys. Proposed marriage to Arya — gently rejected.'},
+  {id:'shireen', name:'Shireen',          title:'Princess',               house:'baratheon', dead:true,  x:1880, y:540,
+   info:'Daughter of Stannis and Selyse. Survived greyscale as an infant — left with half her face disfigured. The only person who showed kindness to Ser Davos. Sweet, brave, and bookish. Burned alive by her own father at Melisandre\'s urging as a sacrifice — screaming for him to stop.'},
+
+  // LANNISTER — parents
+  {id:'tywin',   name:'Tywin Lannister', title:'Lord of Casterly Rock · Hand of the King', house:'lannister', dead:true,  x:2300, y:140,
+   info:'The most feared and powerful lord in Westeros. Won three wars. Orchestrated the Red Wedding. Believed a Lannister must always be the most powerful man in any room. Never forgave Tyrion for existing. Shot by Tyrion with a crossbow while sitting on the privy.'},
+  {id:'joanna',  name:'Joanna Lannister', title:'Lady of Casterly Rock',  house:'lannister', dead:true,  x:2445, y:140,
+   info:'Tywin\'s beloved wife and cousin. His only true love. Died giving birth to Tyrion. Tywin\'s entire personality shattered at her death — and he directed his grief outward as cold contempt, especially toward Tyrion.'},
+  {id:'cersei',  name:'Cersei Lannister', title:'Queen · Queen Mother',   house:'lannister', dead:true,  x:2240, y:340,
+   info:'Tywin\'s daughter. Jaime\'s twin. Never given real power until she seized it herself. Incestuous relationship with Jaime produced all three children. Destroyed the Sept of Baelor with wildfire, killing hundreds including Margaery Tyrell. Died crushed beneath the collapsing Red Keep — together with Jaime.'},
+  {id:'jaime',   name:'Jaime Lannister', title:'Ser Jaime · The Kingslayer', house:'lannister', dead:true,  x:2400, y:340,
+   info:'The Kingslayer — killed Aerys II to save King\'s Landing from wildfire, and was forever branded a traitor for an act of heroism no one would believe. Twin and lover of Cersei. Lost his sword hand to the Boltons. Became an honorable man. Chose Cersei over the living world at the end.'},
+  {id:'tyrion',  name:'Tyrion Lannister', title:'The Imp · Hand of the King', house:'lannister', dead:false, x:2555, y:340,
+   info:'The most intelligent Lannister by far. Commanded the defense of King\'s Landing at Blackwater Bay. Falsely accused of killing Joffrey. Killed Shae and his father Tywin. Served as Hand to Daenerys. Suggested Bran as king. Became Hand of the King — again — to Bran the Broken.'},
+
+  // CERSEI + JAIME CHILDREN
+  {id:'joffrey', name:'Joffrey',          title:'King of the Seven Kingdoms', house:'lannister', dead:true,  x:2210, y:540,
+   info:'Son of Cersei and Jaime — not Robert. The cruelest king in living memory. Had Ned Stark executed on a whim. Enjoyed public torture and humiliation. Murdered at his own wedding feast — the Purple Wedding — poisoned by Olenna Tyrell and Littlefinger.'},
+  {id:'myrcella', name:'Myrcella',         title:'Princess of Dorne',      house:'lannister', dead:true,  x:2355, y:540,
+   info:'Daughter of Cersei and Jaime. Kind, sweet, and nothing like her family. Sent to Dorne to forge an alliance. Jaime reached her in time to share a moment of acceptance — she knew he was her father and loved him anyway. Poisoned by Ellaria Sand\'s kiss on the journey home.'},
+  {id:'tommen',  name:'Tommen',           title:'King of the Seven Kingdoms', house:'lannister', dead:true,  x:2500, y:540,
+   info:'Son of Cersei and Jaime. Gentle and easily manipulated. Genuinely loved Margaery Tyrell. Converted to the Faith of the Seven. Removed his crown and walked out a window after Cersei destroyed the Great Sept of Baelor — killing Margaery inside it.'},
+
+  // GREYJOY
+  {id:'balon',   name:'Balon Greyjoy',    title:'Lord of the Iron Islands', house:'greyjoy', dead:true,  x:2760, y:340,
+   info:'Lord Reaper of Pyke. Led two failed rebellions — lost both sons in the first. Fanatically committed to the Old Way. Refused every offer to bend the knee. Killed by his exiled brother Euron Greyjoy, who used a Faceless Man to murder him, then seized the Salt Throne.'},
+  {id:'theon',   name:'Theon Greyjoy',    title:'Prince of the Iron Islands', house:'greyjoy', dead:true,  x:2720, y:540,
+   info:'Ward of Ned Stark for ten years. Felt he belonged nowhere — not Stark, not Greyjoy. Betrayed Robb. Captured and systematically broken by Ramsay Bolton as "Reek." Escaped with Sansa. Reclaimed himself. Charged the Night King alone at the Battle of Winterfell to protect Bran — killed by the Night King before Arya\'s intervention.'},
+  {id:'yara',    name:'Yara Greyjoy',     title:'Lady of the Iron Islands', house:'greyjoy', dead:false, x:2860, y:540,
+   info:'Theon\'s fierce older sister. The best captain in the Iron Fleet. Tried and failed to rescue Theon from Ramsay. Allied with Daenerys in exchange for the fleet and independence. Captured by Euron. Freed by Theon. Spoke for the Iron Islands at the Great Council. Survived everything.'},
+];
+
+const CONNS = [
+  // Marriages
+  {f:'aerys',   t:'rhaella',  type:'marriage'},
+  {f:'rickard', t:'lyarra',   type:'marriage'},
+  {f:'ned',     t:'catelyn',  type:'marriage'},
+  {f:'tywin',   t:'joanna',   type:'marriage'},
+  {f:'robert',  t:'cersei',   type:'marriage'},
+  {f:'rhaegar', t:'lyanna',   type:'secret'},
+
+  // Targaryen → children
+  {f:'aerys',   t:'rhaegar',  type:'child'},
+  {f:'aerys',   t:'viserys',  type:'child'},
+  {f:'aerys',   t:'dany',     type:'child'},
+
+  // Rhaegar + Lyanna → Jon
+  {f:'rhaegar', t:'jon',      type:'child'},
+  {f:'lyanna',  t:'jon',      type:'child'},
+
+  // Rickard Stark → children
+  {f:'rickard', t:'ned',      type:'child'},
+  {f:'rickard', t:'lyanna',   type:'child'},
+  {f:'rickard', t:'benjen',   type:'child'},
+
+  // Hoster Tully → children
+  {f:'hoster',  t:'catelyn',  type:'child'},
+  {f:'hoster',  t:'lysa',     type:'child'},
+  {f:'hoster',  t:'edmure',   type:'child'},
+
+  // Ned + Catelyn → children
+  {f:'ned',     t:'robb',     type:'child'},
+  {f:'ned',     t:'sansa',    type:'child'},
+  {f:'ned',     t:'arya',     type:'child'},
+  {f:'ned',     t:'bran',     type:'child'},
+  {f:'ned',     t:'rickon',   type:'child'},
+
+  // Tywin → children
+  {f:'tywin',   t:'cersei',   type:'child'},
+  {f:'tywin',   t:'jaime',    type:'child'},
+  {f:'tywin',   t:'tyrion',   type:'child'},
+
+  // Cersei + Jaime → children (incest)
+  {f:'cersei',  t:'joffrey',  type:'incest'},
+  {f:'cersei',  t:'myrcella', type:'incest'},
+  {f:'cersei',  t:'tommen',   type:'incest'},
+
+  // Robert bastard
+  {f:'robert',  t:'gendry',   type:'bastard'},
+
+  // Stannis → Shireen
+  {f:'stannis', t:'shireen',  type:'child'},
+
+  // Greyjoy
+  {f:'balon',   t:'theon',    type:'child'},
+  {f:'balon',   t:'yara',     type:'child'},
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const byId = id => CHARS.find(c => c.id === id);
+const R = 29; // node radius
+
+// ─── RENDER CONNECTIONS ──────────────────────────────────────────────────────
+function renderConns() {
+  const svg = document.getElementById('svg-layer');
+
+  // House zone backgrounds
+  const zones = [
+    {h:'targaryen', x:80,   y:90,  w:470, ht:570},
+    {h:'stark',     x:600,  y:90,  w:670, ht:570},
+    {h:'tully',     x:1295, y:90,  w:265, ht:360},
+    {h:'baratheon', x:1620, y:90,  w:460, ht:570},
+    {h:'lannister', x:2160, y:90,  w:470, ht:570},
+    {h:'greyjoy',   x:2680, y:90,  w:260, ht:570},
+  ];
+  zones.forEach(z => {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', z.x); rect.setAttribute('y', z.y);
+    rect.setAttribute('width', z.w); rect.setAttribute('height', z.ht);
+    rect.setAttribute('rx', '12');
+    rect.setAttribute('fill', H[z.h].c);
+    rect.setAttribute('opacity', '0.035');
+    svg.appendChild(rect);
+  });
+
+  // Generation dividers
+  [140, 340, 540].forEach((y, i) => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1','60'); line.setAttribute('y1', y);
+    line.setAttribute('x2','2980'); line.setAttribute('y2', y);
+    line.setAttribute('stroke','rgba(255,255,255,0.04)');
+    line.setAttribute('stroke-width','1');
+    svg.appendChild(line);
+  });
+
+  // Connections
+  CONNS.forEach(conn => {
+    const f = byId(conn.f), t = byId(conn.t);
+    if (!f || !t) return;
+
+    let d, stroke, sw=1.8, dash='none', op=0.6;
+
+    if (conn.type === 'marriage') {
+      const dist = Math.abs(t.x - f.x);
+      if (dist > 280) {
+        const mx = (f.x + t.x) / 2, my = f.y - 70;
+        d = `M ${f.x+R} ${f.y} Q ${mx} ${my} ${t.x-R} ${t.y}`;
+      } else {
+        d = `M ${f.x+R} ${f.y} L ${t.x-R} ${t.y}`;
+      }
+      stroke='#C9A84C'; sw=2.2; op=0.85;
+
+    } else if (conn.type === 'secret') {
+      const mx = (f.x + t.x) / 2, my = Math.min(f.y,t.y) - 115;
+      d = `M ${f.x} ${f.y-R} Q ${mx} ${my} ${t.x} ${t.y-R}`;
+      stroke='#9B59B6'; sw=1.5; dash='8 5'; op=0.8;
+
+    } else if (conn.type === 'child' || conn.type === 'incest') {
+      const fx=f.x, fy=f.y+R, tx=t.x, ty=t.y-R;
+      const mid = fy + (ty-fy)*0.5;
+      d = `M ${fx} ${fy} C ${fx} ${mid} ${tx} ${mid} ${tx} ${ty}`;
+      stroke = conn.type === 'incest' ? '#922B21' : H[f.house].c;
+      op = conn.type === 'incest' ? 0.45 : 0.5;
+
+    } else if (conn.type === 'bastard') {
+      const fx=f.x, fy=f.y+R, tx=t.x, ty=t.y-R;
+      const mid = fy + (ty-fy)*0.5;
+      d = `M ${fx} ${fy} C ${fx} ${mid} ${tx} ${mid} ${tx} ${ty}`;
+      stroke='#7F8C8D'; dash='5 4'; op=0.45;
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('stroke', stroke);
+    path.setAttribute('stroke-width', sw);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-dasharray', dash);
+    path.setAttribute('opacity', op);
+    path.setAttribute('data-f', conn.f);
+    path.setAttribute('data-t', conn.t);
+    path.setAttribute('data-type', conn.type);
+    svg.appendChild(path);
+
+    // Animated travel dot on marriage lines
+    if (conn.type === 'marriage') {
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('r','3.5');
+      dot.setAttribute('fill','#C9A84C');
+      dot.setAttribute('opacity','0.9');
+      const anim = document.createElementNS('http://www.w3.org/2000/svg','animateMotion');
+      anim.setAttribute('dur', (2.5 + Math.random()*1.5)+'s');
+      anim.setAttribute('repeatCount','indefinite');
+      anim.setAttribute('path', d);
+      dot.appendChild(anim);
+      svg.appendChild(dot);
+    }
+  });
+
+  // Secret marriage label
+  const rh = byId('rhaegar'), ly = byId('lyanna');
+  const slx = (rh.x+ly.x)/2, sly = Math.min(rh.y,ly.y)-130;
+  addSvgText(svg, slx, sly, 'SECRET MARRIAGE', '#9B59B6', 9, 1.5);
+
+  // Incest arc Cersei ↔ Jaime
+  const ce = byId('cersei'), ja = byId('jaime');
+  const ip = document.createElementNS('http://www.w3.org/2000/svg','path');
+  const imx = (ce.x+ja.x)/2;
+  ip.setAttribute('d', `M ${ce.x+R} ${ce.y} Q ${imx} ${ce.y-50} ${ja.x-R} ${ja.y}`);
+  ip.setAttribute('stroke','#922B21');ip.setAttribute('stroke-width','1.2');
+  ip.setAttribute('fill','none');ip.setAttribute('stroke-dasharray','5 3');ip.setAttribute('opacity','0.5');
+  svg.appendChild(ip);
+  addSvgText(svg, imx, ce.y-58, '⚠ INCEST', '#922B21', 8.5, 1);
+}
+
+function addSvgText(svg, x, y, txt, fill, size, op) {
+  const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+  t.setAttribute('x',x); t.setAttribute('y',y);
+  t.setAttribute('text-anchor','middle');
+  t.setAttribute('fill',fill);
+  t.setAttribute('font-family','Cinzel,serif');
+  t.setAttribute('font-size',size);
+  t.setAttribute('letter-spacing','1.5');
+  t.setAttribute('opacity',op);
+  t.textContent = txt;
+  svg.appendChild(t);
+}
+
+// ─── RENDER NODES ────────────────────────────────────────────────────────────
+function renderNodes() {
+  const layer = document.getElementById('nl');
+
+  // Generation labels
+  [{y:140,label:'GENERATION I'},{y:340,label:'GENERATION II'},{y:540,label:'GENERATION III'}].forEach(g => {
+    const el = document.createElement('div');
+    el.className = 'glabel';
+    el.style.top = (g.y - 6) + 'px';
+    el.textContent = g.label;
+    layer.appendChild(el);
+  });
+
+  // House labels
+  const zones = [
+    {label:'House Targaryen', color:H.targaryen.c, x:82,   y:95},
+    {label:'House Stark',     color:H.stark.c,     x:605,  y:95},
+    {label:'House Tully',     color:H.tully.c,     x:1298, y:95},
+    {label:'House Baratheon', color:H.baratheon.c, x:1624, y:95},
+    {label:'House Lannister', color:H.lannister.c, x:2165, y:95},
+    {label:'House Greyjoy',   color:H.greyjoy.c,   x:2684, y:95},
+  ];
+  zones.forEach(z => {
+    const el = document.createElement('div');
+    el.className = 'hlabel';
+    el.style.left = z.x + 'px';
+    el.style.top  = z.y + 'px';
+    el.style.color = z.color;
+    el.textContent = z.label.toUpperCase();
+    layer.appendChild(el);
+  });
+
+  // Character nodes
+  CHARS.forEach(ch => {
+    const house = H[ch.house];
+    const node = document.createElement('div');
+    node.className = 'cnode';
+    node.id = 'node-' + ch.id;
+    node.setAttribute('data-id', ch.id);
+    node.setAttribute('data-house', ch.house);
+    node.style.left = ch.x + 'px';
+    node.style.top  = ch.y + 'px';
+
+    const ringBg = ch.dead
+      ? 'radial-gradient(circle at 40% 35%, rgba(40,25,30,0.95), rgba(10,6,12,0.97))'
+      : 'radial-gradient(circle at 40% 35%, rgba(18,12,24,0.95), rgba(8,5,12,0.97))';
+    const ringOp = ch.dead ? '0.72' : '1';
+    const markHtml = ch.dead
+      ? `<span class="cmark" style="color:#C0392B;font-size:12px" title="Deceased">⚔</span>`
+      : `<span class="cmark" style="color:#2ECC71;font-size:10px" title="Alive">✦</span>`;
+    const shortTitle = ch.title.split('·')[0].split(',')[0].trim();
+
+    node.innerHTML = `
+      <div class="cring"
+           style="border-color:${house.c};
+                  box-shadow:0 0 12px ${house.c}40;
+                  background:${ringBg};
+                  opacity:${ringOp};
+                  --hc:${house.c}">
+        <span class="cinitial" style="color:${house.c}">${ch.name[0]}</span>
+        ${markHtml}
+      </div>
+      <div class="cname">${ch.name}</div>
+      <div class="ctitle">${shortTitle}</div>
+    `;
+
+    node.addEventListener('mouseenter', e => {
+      showTT(ch, e);
+      node.querySelector('.cring').style.boxShadow =
+        `0 0 22px ${house.g}99, 0 0 44px ${house.g}40, inset 0 0 12px ${house.c}22`;
+      highlightConnected(ch.id);
+    });
+    node.addEventListener('mousemove', moveTT);
+    node.addEventListener('mouseleave', () => {
+      hideTT();
+      node.querySelector('.cring').style.boxShadow = `0 0 12px ${house.c}40`;
+      clearHighlight();
+    });
+
+    layer.appendChild(node);
+  });
+}
+
+// ─── TOOLTIP ─────────────────────────────────────────────────────────────────
+const tt = document.getElementById('tt');
+function showTT(ch, e) {
+  const house = H[ch.house];
+  document.getElementById('tt-h').textContent = house.label.toUpperCase() + ' · "' + house.words + '"';
+  document.getElementById('tt-h').style.color = house.c;
+  tt.style.borderColor = house.c;
+  document.getElementById('tt-n').textContent = ch.name;
+  document.getElementById('tt-j').textContent = ch.title;
+  document.getElementById('tt-s').innerHTML = ch.dead
+    ? '<span style="color:#C0392B">⚔ Deceased</span>'
+    : '<span style="color:#2ECC71">✦ Alive as of Season 8 Finale</span>';
+  document.getElementById('tt-d').textContent = ch.info;
+  moveTT(e);
+  tt.classList.add('on');
+}
+function moveTT(e) {
+  const x = e.clientX + 18, y = e.clientY - 12;
+  const w = tt.offsetWidth, h = tt.offsetHeight;
+  tt.style.left = (x + w > window.innerWidth  - 10 ? x - w - 36 : x) + 'px';
+  tt.style.top  = (y + h > window.innerHeight - 10 ? y - h      : y) + 'px';
+}
+function hideTT() { tt.classList.remove('on'); }
+
+// ─── HIGHLIGHT CONNECTED ─────────────────────────────────────────────────────
+function highlightConnected(id) {
+  const connected = new Set([id]);
+  CONNS.forEach(c => {
+    if (c.f === id) connected.add(c.t);
+    if (c.t === id) connected.add(c.f);
+  });
+
+  document.querySelectorAll('.cnode').forEach(n => {
+    const nid = n.getAttribute('data-id');
+    n.style.opacity = connected.has(nid) ? '1' : '0.25';
+  });
+
+  document.querySelectorAll('#svg-layer path').forEach(p => {
+    const pf = p.getAttribute('data-f'), pt = p.getAttribute('data-t');
+    if (!pf || !pt) return;
+    const rel = pf === id || pt === id;
+    p.style.opacity = rel ? '1' : '0.06';
+    if (rel) p.setAttribute('stroke-width', parseFloat(p.getAttribute('stroke-width') || 1.8) * 1.5);
+  });
+}
+function clearHighlight() {
+  document.querySelectorAll('.cnode').forEach(n => n.style.opacity = '1');
+  document.querySelectorAll('#svg-layer path').forEach(p => {
+    if (!p.getAttribute('data-f')) return;
+    p.style.opacity = p.getAttribute('opacity') || '0.6';
+    const type = p.getAttribute('data-type');
+    const sw = type === 'marriage' ? 2.2 : 1.8;
+    p.setAttribute('stroke-width', sw);
+  });
+}
+
+// ─── HOUSE FILTER ────────────────────────────────────────────────────────────
+function filter(house) {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'transparent';
+  });
+  const btn = document.querySelector(`[data-h="${house}"]`);
+  if (btn) {
+    btn.classList.add('active');
+    const houseColor = house === 'all' ? '#c9a84c' : H[house].c;
+    btn.style.background = houseColor + '22';
+    btn.style.color = '#fff';
+  }
+
+  document.querySelectorAll('.cnode').forEach(node => {
+    if (house === 'all') {
+      node.style.opacity = '1'; node.style.filter = 'none'; return;
+    }
+    const id = node.getAttribute('data-id');
+    const ch = byId(id);
+    const inHouse = ch.house === house;
+    const linked = CONNS.some(c =>
+      (c.f === id || c.t === id) &&
+      (byId(c.f)?.house === house || byId(c.t)?.house === house)
+    );
+    node.style.opacity = (inHouse || linked) ? '1' : '0.1';
+    node.style.filter  = (inHouse || linked) ? 'none' : 'grayscale(1) brightness(0.4)';
+  });
+
+  document.querySelectorAll('#svg-layer path').forEach(p => {
+    if (!p.getAttribute('data-f')) { p.style.opacity = house === 'all' ? '1' : '0.03'; return; }
+    if (house === 'all') { p.style.opacity = p.getAttribute('opacity') || '0.6'; return; }
+    const f = byId(p.getAttribute('data-f')), t = byId(p.getAttribute('data-t'));
+    const rel = f?.house === house || t?.house === house;
+    p.style.opacity = rel ? (p.getAttribute('opacity') || '0.6') : '0.05';
+  });
+}
+
+// ─── PARTICLES (EMBERS) ──────────────────────────────────────────────────────
+function initParticles() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H_px;
+  function resize() { W = canvas.width = window.innerWidth; H_px = canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLS = ['#FF4500','#FF6600','#FF8C00','#FFB300','#FF3300','#E8821F','#FFD700'];
+  const pts = Array.from({length:80}, () => ({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    s: Math.random() * 2.2 + 0.4,
+    sp: Math.random() * 0.7 + 0.25,
+    dr: (Math.random() - 0.5) * 0.45,
+    col: COLS[Math.floor(Math.random() * COLS.length)],
+    ph: Math.random() * Math.PI * 2,
+  }));
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H_px);
+    pts.forEach(p => {
+      p.y -= p.sp; p.x += p.dr; p.ph += 0.04;
+      const alpha = (Math.sin(p.ph) * 0.25 + 0.55) * 0.65;
+      if (p.y < -8) { p.y = H_px + 8; p.x = Math.random() * W; }
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.shadowBlur = 7; ctx.shadowColor = p.col;
+      ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderConns();
+  renderNodes();
+  initParticles();
+});
+</script>
+</body>
+</html>
